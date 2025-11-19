@@ -43,6 +43,9 @@ jobs:
           upstream_sync_branch: main
           upstream_sync_repo: thedotmack/claude-mem
 
+          # Only allow fast-forward merges to keep main as clean mirror of upstream
+          git_pull_args: --ff-only
+
           # Set test_mode true during manual dispatch to run tests instead of the true action!!
           test_mode: ${{ inputs.sync_test_mode }}
 
