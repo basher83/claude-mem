@@ -4,6 +4,41 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [6.1.1] - 2025-11-21
+
+## Bug Fixes
+
+### Dynamic Project Name Detection (#142)
+- Fixed hardcoded "claude-mem" project name in ChromaSync and search-server
+- Now uses `getCurrentProjectName()` to dynamically detect the project based on working directory
+- Resolves #140 where all observations were incorrectly tagged with "claude-mem"
+
+### Viewer UI Scrolling
+- Simplified overflow CSS to enable proper scrolling in viewer UI
+- Removed overcomplicated nested overflow containers
+- Fixed issue where feed content wouldn't scroll
+
+## Installation
+
+Users with auto-update enabled will receive this patch automatically. To manually update:
+
+\`\`\`bash
+# Restart Claude Code or run:
+npm run sync-marketplace
+\`\`\`
+
+## [6.1.0] - 2025-11-19
+
+## Viewer UI: Responsive Layout Improvements
+
+The viewer UI now handles narrow screens better with responsive breakpoints:
+
+- Community button relocates to sidebar below 600px width
+- Projects dropdown relocates to sidebar below 480px width
+- Sidebar constrained to 400px max width
+
+Makes the viewer usable on phones and narrow browser windows.
+
 ## [6.0.9] - 2025-11-17
 
 ## Queue Depth Indicator Feature
