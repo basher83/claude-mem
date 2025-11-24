@@ -12,7 +12,6 @@ import { SessionStore } from '../sqlite/SessionStore.js';
 import { SessionSearch } from '../sqlite/SessionSearch.js';
 import { ChromaSync } from '../sync/ChromaSync.js';
 import { logger } from '../../utils/logger.js';
-import { getCurrentProjectName } from '../../shared/paths.js';
 import type { DBSession } from '../worker-types.js';
 
 export class DatabaseManager {
@@ -28,9 +27,8 @@ export class DatabaseManager {
     this.sessionStore = new SessionStore();
     this.sessionSearch = new SessionSearch();
 
-    // Initialize ChromaSync with actual project name
-    const projectName = getCurrentProjectName();
-    this.chromaSync = new ChromaSync(projectName);
+    // Initialize ChromaSync
+    this.chromaSync = new ChromaSync('claude-mem');
 
     // Start background backfill (fire-and-forget, with error logging)
     this.chromaSync.ensureBackfilled().catch((error) => {

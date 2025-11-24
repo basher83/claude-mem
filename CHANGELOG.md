@@ -4,6 +4,84 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [6.2.1] - 2025-11-23
+
+## 🐛 Bug Fixes
+
+### Critical: Empty Project Names Breaking Context Injection
+
+**Problem:**
+- Observations and summaries created with empty project names
+- Context-hook couldn't find recent context (queries `WHERE project = 'claude-mem'`)
+- Users saw no observations or summaries in SessionStart since Nov 22
+
+**Root Causes:**
+
+1. **Sessions:** `createSDKSession()` used `INSERT OR IGNORE` for idempotency, but never updated project field when session already existed
+2. **In-Memory Cache:** `SessionManager` cached sessions with stale empty project values, even after database was updated
+
+**Fixes:**
+
+- `5d23c60` - fix: Update project name when session already exists in createSDKSession
+- `54ef149` - fix: Refresh in-memory session project when updated in database
+
+**Impact:**
+- ✅ 364 observations backfilled with correct project names
+- ✅ 13 summaries backfilled with correct project names  
+- ✅ Context injection now works (shows recent observations and summaries)
+- ✅ Future sessions will always have correct project names
+
+## 📦 Full Changelog
+
+**Commits since v6.2.0:**
+- `634033b` - chore: Bump version to 6.2.1
+- `54ef149` - fix: Refresh in-memory session project when updated in database
+- `5d23c60` - fix: Update project name when session already exists in createSDKSession
+
+## [6.2.0] - 2025-11-22
+
+## Major Features
+
+### Unified Search API (#145, #133)
+- **Vector-first search architecture**: All text queries now use ChromaDB semantic search
+- **Unified /api/search endpoint**: Single endpoint with filter parameters (type, concepts, files)
+- **ID-based fetch endpoints**: New GET /api/observation/:id, /api/session/:id, /api/prompt/:id
+- **90-day recency filter**: Automatic relevance filtering for search results
+- **Backward compatibility**: Legacy endpoints still functional, routing through unified infrastructure
+
+### Search Architecture Cleanup
+- **Removed FTS5 fallback code**: Eliminated ~300 lines of deprecated full-text search code
+- **Removed experimental contextualize endpoint**: Will be reimplemented as LLM-powered skill (see #132)
+- **Simplified mem-search skill**: Streamlined to prescriptive 3-step workflow (Search → Review IDs → Fetch by ID)
+- **Better error messages**: Clear guidance when ChromaDB/UVX unavailable
+
+## Bug Fixes
+
+### Search Improvements
+- Fixed parameter handling in searchUserPrompts method
+- Improved dual-path logic for filter-only vs text queries
+- Corrected missing debug output in search API
+
+## Documentation
+
+- Updated CLAUDE.md to reflect vector-first architecture
+- Clarified FTS5 tables maintained for backward compatibility only (removal planned for v7.0.0)
+- Enhanced mem-search skill documentation with clearer usage patterns
+- Added comprehensive test results for search functionality
+
+## Breaking Changes
+
+None - all changes maintain backward compatibility.
+
+## Installation
+
+Users with auto-update enabled will receive this update automatically. To manually update:
+
+\`\`\`bash
+# Restart Claude Code or run:
+npm run sync-marketplace
+\`\`\`
+
 ## [6.1.1] - 2025-11-21
 
 ## Bug Fixes

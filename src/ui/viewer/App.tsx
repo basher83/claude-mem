@@ -86,7 +86,7 @@ export function App() {
   }, [currentFilter]);
 
   return (
-    <div className="full-height-flex-layout">
+    <div className="container">
       <div className="main-col">
         <Header
           isConnected={isConnected}
@@ -117,9 +117,6 @@ export function App() {
         isSaving={isSaving}
         saveStatus={saveStatus}
         isConnected={isConnected}
-        projects={projects}
-        currentFilter={currentFilter}
-        onFilterChange={setCurrentFilter}
         onSave={saveSettings}
         onClose={toggleSidebar}
         onRefreshStats={refreshStats}
