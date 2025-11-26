@@ -4,6 +4,49 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [6.3.2] - 2025-11-25
+
+## What's Changed
+
+### Improvements
+- Add search query support to `/api/decisions` endpoint - now supports semantic search within decisions using Chroma with `{ type: 'decision' }` metadata filter
+
+### Usage
+```bash
+# Search within decisions (new)
+curl "http://localhost:37777/api/decisions?query=architecture&format=full&limit=5"
+
+# All decisions (existing behavior preserved)
+curl "http://localhost:37777/api/decisions?format=index&limit=10"
+```
+
+## [6.3.1] - 2025-11-25
+
+## What's New
+
+- Add script to help estimate token savings from on-the-fly replacements
+
+## [6.3.0] - 2025-11-25
+
+## What's New
+
+### Branch-Based Beta Toggle
+Added Version Channel section to Settings sidebar allowing users to switch between stable and beta versions directly from the UI.
+
+**Features:**
+- See current branch (main or beta/7.0) and stability status
+- Switch to beta branch to access Endless Mode features
+- Switch back to stable for production use
+- Pull updates for current branch
+
+**Implementation:**
+- `BranchManager.ts`: Git operations for branch detection/switching
+- `worker-service.ts`: `/api/branch/*` endpoints (status, switch, update)
+- `Sidebar.tsx`: Version Channel UI with branch state and handlers
+
+## Installation
+To update, restart Claude Code or run the plugin installer.
+
 ## [6.2.1] - 2025-11-23
 
 ## 🐛 Bug Fixes
