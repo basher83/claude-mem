@@ -44,7 +44,8 @@ try {
   // Cross-platform path to context-hook.js in the installed plugin
   const contextHookPath = join(homedir(), '.claude', 'plugins', 'marketplaces', 'thedotmack', 'plugin', 'scripts', 'context-hook.js');
   const output = execSync(`node "${contextHookPath}" --colors`, {
-    encoding: 'utf8'
+    encoding: 'utf8',
+    windowsHide: true
   });
 
   const port = getWorkerPort();
@@ -52,6 +53,23 @@ try {
   // If it's after Dec 5, 2025 7pm EST, patch this out
   const now = new Date();
   const amaEndDate = new Date('2025-12-06T00:00:00Z'); // Dec 5, 2025 7pm EST
+
+  // Product Hunt launch announcement - expires Dec 5, 2025 12am EST (05:00 UTC)
+  const phLaunchEndDate = new Date('2025-12-05T05:00:00Z');
+  let productHuntAnnouncement = "";
+  if (now < phLaunchEndDate) {
+    productHuntAnnouncement = `
+
+🚀 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 🚀
+
+   We launched on Product Hunt!
+   https://tinyurl.com/claude-mem-ph
+
+   ⭐ Your upvote means the world - thank you!
+
+🚀 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 🚀
+`;
+  }
 
   let amaAnnouncement = "";
   if (now < amaEndDate) {
@@ -79,6 +97,7 @@ try {
     output +
     "\n\n💡 New! Wrap all or part of any message with <private> ... </private> to prevent storing sensitive information in your observation history.\n" +
     "\n💬 Community https://discord.gg/J4wttp9vDu" +
+    productHuntAnnouncement +
     amaAnnouncement +
     `\n📺 Watch live in browser http://localhost:${port}/\n`
   );
