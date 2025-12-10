@@ -12,18 +12,19 @@
  */
 
 import { existsSync, readFileSync, writeFileSync } from 'fs';
-import { execSync, spawnSync } from 'child_process';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { execSync, spawnSync, spawn } from 'child_process';
+import { join } from 'path';
+import { homedir } from 'os';
+import { createRequire } from 'module';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
-// Plugin root is parent directory of scripts/
-const PLUGIN_ROOT = join(__dirname, '..');
-const PACKAGE_JSON_PATH = join(PLUGIN_ROOT, 'package.json');
-const VERSION_MARKER_PATH = join(PLUGIN_ROOT, '.install-version');
-const NODE_MODULES_PATH = join(PLUGIN_ROOT, 'node_modules');
+// CRITICAL: Always use marketplace directory for npm install and PM2/ecosystem
+// This script may run from cache directory (plugin/) which has no package.json
+// The marketplace root is the canonical location with package.json and node_modules
+const MARKETPLACE_ROOT = join(homedir(), '.claude', 'plugins', 'marketplaces', 'thedotmack');
+const PACKAGE_JSON_PATH = join(MARKETPLACE_ROOT, 'package.json');
+const VERSION_MARKER_PATH = join(MARKETPLACE_ROOT, '.install-version');
+const NODE_MODULES_PATH = join(MARKETPLACE_ROOT, 'node_modules');
 const BETTER_SQLITE3_PATH = join(NODE_MODULES_PATH, 'better-sqlite3');
 
 // Colors for output
@@ -150,8 +151,10 @@ async function verifyNativeModules() {
   try {
     log('🔍 Verifying native modules...', colors.dim);
 
-    // Try to actually load better-sqlite3
-    const { default: Database } = await import('better-sqlite3');
+    // CRITICAL: Use createRequire() to resolve from MARKETPLACE_ROOT
+    // This script may run from cache but must load modules from marketplace's node_modules
+    const require = createRequire(join(MARKETPLACE_ROOT, 'package.json'));
+    const Database = require('better-sqlite3');
 
     // Try to create a test in-memory database
     const db = new Database(':memory:');
@@ -257,9 +260,10 @@ async function runNpmInstall() {
 
       // Run npm install silently
       execSync(command, {
-        cwd: PLUGIN_ROOT,
+        cwd: MARKETPLACE_ROOT,
         stdio: 'pipe', // Silent output unless error
         encoding: 'utf-8',
+        windowsHide: true,
       });
 
       // Verify better-sqlite3 was installed
@@ -364,31 +368,10 @@ async function main() {
       }
     }
 
-      // Try to start the PM2 worker after fresh install
-      try {
-        log('🚀 Starting worker service...', colors.cyan);
-        // On Windows, PM2 executable is pm2.cmd, not pm2
-        const localPm2Base = join(NODE_MODULES_PATH, '.bin', 'pm2');
-        const localPm2Cmd = process.platform === 'win32' ? localPm2Base + '.cmd' : localPm2Base;
-        const pm2Command = existsSync(localPm2Cmd) ? localPm2Cmd : 'pm2';
-        const ecosystemPath = join(PLUGIN_ROOT, 'ecosystem.config.cjs');
-
-        // Using spawnSync with array args to avoid command injection risks
-        const result = spawnSync(pm2Command, ['start', ecosystemPath], {
-          cwd: PLUGIN_ROOT,
-          stdio: 'pipe',
-          encoding: 'utf-8'
-        });
-        if (result.status !== 0) {
-          throw new Error(result.stderr || 'PM2 start failed');
-        }
-
-        log('✅ Worker service started', colors.green);
-      } catch (error) {
-        // Worker might already be running or PM2 not available - that's okay
-        // The ensureWorkerRunning() function will handle auto-start when needed
-        log('ℹ️  Worker will start automatically when needed', colors.dim);
-      }
+      // NOTE: Worker auto-start disabled in smart-install.js
+      // The context-hook.js calls ensureWorkerRunning() which handles worker startup
+      // This avoids potential process management conflicts during plugin initialization
+      log('✅ Installation complete', colors.green);
 
     // Success - dependencies installed (if needed)
     process.exit(0);

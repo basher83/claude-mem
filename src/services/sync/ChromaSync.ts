@@ -13,6 +13,9 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { ParsedObservation, ParsedSummary } from '../../sdk/parser.js';
 import { SessionStore } from '../sqlite/SessionStore.js';
 import { logger } from '../../utils/logger.js';
+import { SettingsDefaultsManager } from '../../shared/SettingsDefaultsManager.js';
+import { USER_SETTINGS_PATH } from '../../shared/paths.js';
+import { happy_path_error__with_fallback } from '../../utils/silent-debug.js';
 import path from 'path';
 import os from 'os';
 
@@ -96,7 +99,8 @@ export class ChromaSync {
     try {
       // Use Python 3.13 by default to avoid onnxruntime compatibility issues with Python 3.14+
       // See: https://github.com/thedotmack/claude-mem/issues/170 (Python 3.14 incompatibility)
-      const pythonVersion = process.env.CLAUDE_MEM_PYTHON_VERSION || '3.13';
+      const settings = SettingsDefaultsManager.loadFromFile(USER_SETTINGS_PATH);
+      const pythonVersion = settings.CLAUDE_MEM_PYTHON_VERSION;
       const transport = new StdioClientTransport({
         command: 'uvx',
         args: [
@@ -731,6 +735,83 @@ export class ChromaSync {
     } finally {
       db.close();
     }
+  }
+
+  /**
+   * Query Chroma collection for semantic search
+   * Used by SearchManager for vector-based search
+   */
+  async queryChroma(
+    query: string,
+    limit: number,
+    whereFilter?: Record<string, any>
+  ): Promise<{ ids: number[]; distances: number[]; metadatas: any[] }> {
+    await this.ensureConnection();
+
+    if (!this.client) {
+      throw new Error('Chroma client not initialized');
+    }
+
+    const whereStringified = whereFilter ? JSON.stringify(whereFilter) : undefined;
+
+    const arguments_obj = {
+      collection_name: this.collectionName,
+      query_texts: [query],
+      n_results: limit,
+      include: ['documents', 'metadatas', 'distances'],
+      where: whereStringified
+    };
+
+    const result = await this.client.callTool({
+      name: 'chroma_query_documents',
+      arguments: arguments_obj
+    });
+
+    const resultText = happy_path_error__with_fallback(
+      'Missing text in MCP chroma_query_documents result',
+      { project: this.project, query_text: query },
+      result.content[0]?.text || ''
+    );
+
+    // Parse JSON response
+    let parsed: any;
+    try {
+      parsed = JSON.parse(resultText);
+    } catch (error) {
+      logger.error('CHROMA_SYNC', 'Failed to parse Chroma response', { project: this.project }, error as Error);
+      return { ids: [], distances: [], metadatas: [] };
+    }
+
+    // Extract unique IDs from document IDs
+    const ids: number[] = [];
+    const docIds = parsed.ids?.[0] || [];
+    for (const docId of docIds) {
+      // Extract sqlite_id from document ID (supports three formats):
+      // - obs_{id}_narrative, obs_{id}_fact_0, etc (observations)
+      // - summary_{id}_request, summary_{id}_learned, etc (session summaries)
+      // - prompt_{id} (user prompts)
+      const obsMatch = docId.match(/obs_(\d+)_/);
+      const summaryMatch = docId.match(/summary_(\d+)_/);
+      const promptMatch = docId.match(/prompt_(\d+)/);
+
+      let sqliteId: number | null = null;
+      if (obsMatch) {
+        sqliteId = parseInt(obsMatch[1], 10);
+      } else if (summaryMatch) {
+        sqliteId = parseInt(summaryMatch[1], 10);
+      } else if (promptMatch) {
+        sqliteId = parseInt(promptMatch[1], 10);
+      }
+
+      if (sqliteId !== null && !ids.includes(sqliteId)) {
+        ids.push(sqliteId);
+      }
+    }
+
+    const distances = parsed.distances?.[0] || [];
+    const metadatas = parsed.metadatas?.[0] || [];
+
+    return { ids, distances, metadatas };
   }
 
   /**
